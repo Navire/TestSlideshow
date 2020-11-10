@@ -104,62 +104,56 @@ function elementDiscount(value, produto) {
     produto.appendChild(element);
 }
 
-function getImages(data) {
-    data.mostpopular.forEach((item, index) => {
-        getJSONdata('/complete', function(err, data) {
-            if (err !== null) {
-                console.log('Error from server: ' + err);
-            }
+function getImages(dataObjs) {
 
-            let produto = document.createElement("div");
-            produto.className = "produto";
+    console.log('data :', dataObjs);
 
-            if (index > 4) {
-                produto.classList.add("hideproduto");
-            }
+    dataObjs.mostpopular.forEach((data, i) => {
+        let produto = document.createElement("div");
+        produto.className = "produto";
 
-            elementText('ranking', `${index+1}°`, produto);
+        if (i > 3) {
+            produto.classList.add("hideproduto");
+        }
 
-            elementImage(data.image, produto);
+        elementText('ranking', `${i+1}°`, produto);
 
-            elementText('nomeProduto', data.name, produto);
+        elementImage(data.image, produto);
 
-            elementText('preco', `R$ ${parseFloat(data.oldPrice).toFixed(2)}`, produto);
+        elementText('nomeProduto', data.name, produto);
 
-            elementDiscount(`R$ ${parseFloat(data.price).toFixed(2)}`, produto);
+        elementText('preco', `R$ ${parseFloat(data.oldPrice).toFixed(2)}`, produto);
 
-            elementText('prazos', `${data.installmentCount}x R$ ${data.installmentPrice}`, produto);
+        elementDiscount(`R$ ${parseFloat(data.price).toFixed(2)}`, produto);
 
-            document.getElementById("maisVendidosSlide").appendChild(produto);
+        elementText('prazos', `${data.installmentCount}x R$ ${data.installmentPrice}`, produto);
 
-        }, item.recommendedProduct.id)
-    })
+        document.getElementById("maisVendidosSlide").appendChild(produto);
+    });
 
-    data.pricereduction.forEach((item, index) => {
-        getJSONdata('/complete', function(err, data) {
-            let produto = document.createElement("div");
-            produto.className = "produto";
 
-            if (index > 4) {
-                console.log('index', index)
-                produto.classList.add("hideproduto");
-            }
+    dataObjs.pricereduction.forEach((data, i) => {
+        let produto = document.createElement("div");
+        produto.className = "produto";
 
-            elementText('porcentagem', `%${percent(data.price, data.oldPrice)}`, produto);
+        if (i > 3) {
+            produto.classList.add("hideproduto");
+        }
 
-            elementImage(data.image, produto);
+        elementText('porcentagem', `%${percent(data.price, data.oldPrice)}`, produto);
 
-            elementText('nomeProduto', data.name, produto);
+        elementImage(data.image, produto);
 
-            elementText('preco', `R$ ${parseFloat(data.oldPrice).toFixed(2)}`, produto);
+        elementText('nomeProduto', data.name, produto);
 
-            elementDiscount(`R$ ${parseFloat(data.price).toFixed(2)}`, produto);
+        elementText('preco', `R$ ${parseFloat(data.oldPrice).toFixed(2)}`, produto);
 
-            elementText('prazos', `${data.installmentCount}x R$ ${data.installmentPrice}`, produto);
+        elementDiscount(`R$ ${parseFloat(data.price).toFixed(2)}`, produto);
 
-            document.getElementById("ofertasSlide").appendChild(produto);
-        }, item.recommendedProduct.id)
-    })
+        elementText('prazos', `${data.installmentCount}x R$ ${data.installmentPrice}`, produto);
+
+        document.getElementById("ofertasSlide").appendChild(produto);
+    });
 
     handleMaisImages('mais', 'maisVendidosSlide');
     handleMaisImages('oferta', 'ofertasSlide');

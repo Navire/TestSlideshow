@@ -5,7 +5,6 @@ const lineByLine = require('n-readlines');
 const hostInfos = require('./hostInfos');
 const mysql = require('mysql');
 const connection = mysql.createConnection(hostInfos);
-const catalog = './background/catalog.json';
 const sql = `CREATE TABLE IF NOT EXISTS products (
     id VARCHAR(50) NOT NULL, 
     PRIMARY KEY(id), 
@@ -76,6 +75,19 @@ const checkDataOnTable = () => {
     })
 }
 
+app.get('/compact/:id', function(req, res, next) {
+    connection.query(`SELECT name, price, status, categories FROM catalogtest.products WHERE id='${req.params.id}'`, (err, result) => {
+        if (err) {
+            throw err
+        };
+
+        if (result.length !== 0) {
+            res.send(result[0])
+        }
+    })
+
+});
+
 app.get('/complete/:id', function(req, res, next) {
     connection.query(`SELECT * FROM catalogtest.products WHERE id='${req.params.id}'`, (err, result) => {
         if (err) {
@@ -95,19 +107,50 @@ app.get('/', function(req, res, next) {
     res.send(dataObj)
 });
 
+app.get('/list/:list', function(req, res) {
+    const list = JSON.parse(req.params.list);
 
-app.get('/compact/:id', function(req, res, next) {
-    connection.query(`SELECT name, price, status, categories FROM catalogtest.products WHERE id='${req.params.id}'`, (err, result) => {
+    let resultObj = {
+        mostpopular: null,
+        pricereduction: null,
+    }
+
+    let aux = `${list.mostpopular[0]}`;
+    list.mostpopular.forEach((item, index) => {
+        if (index !== 0) {
+            aux += `,${item}`;
+        }
+    });
+
+    connection.query(`SELECT * FROM catalogtest.products WHERE id IN (${aux})`, (err, result) => {
         if (err) {
             throw err
         };
 
         if (result.length !== 0) {
-            res.send(result[0])
+            resultObj.mostpopular = result;
+
+            let aux = `${list.pricereduction[0]}`;
+            list.pricereduction.forEach((item, index) => {
+                if (index !== 0) {
+                    aux += `,${item}`;
+                }
+            });
+            connection.query(`SELECT * FROM catalogtest.products WHERE id IN (${aux})`, (err, result) => {
+                if (err) {
+                    throw err
+                };
+
+                if (result.length !== 0) {
+                    resultObj.pricereduction = result;
+                    res.send(JSON.stringify(resultObj));
+                }
+            })
         }
     })
-
 });
+
+
 
 app.listen(3001, () => {
     connection.connect((err) => {

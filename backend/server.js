@@ -34,13 +34,23 @@ const microservice = (data) => {
 
         contentType = mimeTypes[extname] || 'application/octet-stream';
 
-        if (request.method === 'POST' && request.url === '/complete') {
+        if (request.method === 'POST' && request.url === '/data') {
             let body = '';
+            let maxProducts = 10;
+
             request.on('data', chunk => { body += chunk });
             request.on('end', () => {
                 let json = JSON.parse(body);
-                id = json.value < 10 ? 10 : json.value;
-                http.get(`http://localhost:3001/complete/${id}`, (res) => {
+                maxProducts = json.value < 10 ? 10 : json.value;
+                response.setHeader("Content-Type", "application/json");
+                response.writeHead(200);
+
+                const list = {
+                    mostpopular: data.mostpopular.slice(0, maxProducts).map(item => item.recommendedProduct.id),
+                    pricereduction: data.pricereduction.slice(0, maxProducts).map(item => item.recommendedProduct.id)
+                }
+
+                http.get(`http://localhost:3001/list/${JSON.stringify(list)}`, (res) => {
                     let body = "";
                     res.on("data", (chunk) => {
                         body += chunk;
@@ -48,35 +58,15 @@ const microservice = (data) => {
 
                     res.on("end", () => {
                         const result = JSON.parse(body);
-                        response.setHeader("Content-Type", "application/json");
-                        response.writeHead(200);
+
                         response.end(JSON.stringify(result));
                     });
 
                 }).on("error", (error) => {
+
                     console.error(error.message);
                 });
-            })
-        } else if (request.method === 'POST' && request.url === '/data') {
-            let body = '';
-            let maxProducts = 10;
 
-            request.on('data', chunk => { body += chunk });
-            request.on('end', () => {
-                try {
-                    let json = JSON.parse(body);
-                    maxProducts = json.value < 10 ? 10 : json.value;
-                    response.setHeader("Content-Type", "application/json");
-                    response.writeHead(200);
-
-                    const result = JSON.stringify({
-                        mostpopular: data.mostpopular.slice(0, maxProducts),
-                        pricereduction: data.pricereduction.slice(0, maxProducts),
-                    })
-                    response.end(result);
-                } catch (error) {
-                    console.error(error.message);
-                };
             })
         } else
             fs.readFile(filePath, function(error, content) {
