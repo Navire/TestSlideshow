@@ -1,88 +1,94 @@
-let currentMais = 0; 
-let currentOferta = 0;
+const maxProducts = 18;
 
-function getJSON (url, callback, maxProducts) {
+function percent(valueS1, valueS2) {
+    const value1 = parseInt(valueS1);
+    const value2 = parseInt(valueS2);
+
+    return (100 * (value2 - value1) / value2).toFixed();
+}
+
+function getJSONdata(url, callback, value) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
     xhr.responseType = 'json';
     xhr.onload = function() {
         var status = xhr.status;
         if (status === 200) {
-        callback(null, xhr.response);
+            callback(null, xhr.response);
         } else {
-        callback(status, xhr.response);
+            callback(status, xhr.response);
         }
     };
-    xhr.send(JSON.stringify({ maxProducts }));
+    xhr.send(JSON.stringify({ value }));
 };
 
-function handleMaisImages (button, slide, current, total){
+function handleMaisImages(button, slide) {
+    let current = 0;
     const fun = {
-        proximo: function(){
+        next: function() {
             clearInterval(intervalo);
-            const produtos = document.getElementById(slide).querySelectorAll(".produto");            
-            if (current + 1 < total - 3){
+            const produtos = document.getElementById(slide).querySelectorAll(".produto");
+            if (current + 1 < produtos.length - 4) {
                 produtos[current].classList.add("hideproduto");
                 produtos[current + 4].classList.remove("hideproduto");
                 current++;
             } else {
-                produtos.forEach((item,index)=>{
-                    if(index< 4){                        
+                produtos.forEach((item, index) => {
+                    if (index < 4) {
                         item.classList.remove("hideproduto");
-                    } else{
+                    } else {
                         item.classList.add("hideproduto");
                     }
                 })
                 current = 0;
             }
-            intervalo = setInterval(fun.proximo,4000);
+            intervalo = setInterval(fun.next, 4000);
         },
 
-        anterior: function(){
+        prev: function() {
             clearInterval(intervalo);
             const produtos = document.getElementById(slide).querySelectorAll(".produto");
-            if (current - 1 > -1){
-                produtos[current + 3].classList.add("hideproduto");                
+            if (current - 1 > -1) {
+                produtos[current + 3].classList.add("hideproduto");
                 produtos[current - 1].classList.remove("hideproduto");
                 current--;
-            } else {                
-                produtos.forEach((item,index)=>{
-                    if(total - 5 < index){                        
+            } else {
+                produtos.forEach((item, index) => {
+                    if (produtos.length - 5 < index) {
                         item.classList.remove("hideproduto");
-                    } else{
+                    } else {
                         item.classList.add("hideproduto");
                     }
                 })
-                current = total - 4;                
+                current = produtos.length - 4;
             }
-            intervalo = setInterval(fun.proximo,4000);
-        }, 
+            intervalo = setInterval(fun.next, 4000);
+        },
     }
 
-    let intervalo = setInterval(fun.proximo,4000);
+    let intervalo = setInterval(fun.next, 4000);
 
-    document.getElementById(`next${button}`).addEventListener("click",fun.proximo,false);
-    document.getElementById(`prev${button}`).addEventListener("click",fun.anterior,false);
+    document.getElementById(`next${button}`).addEventListener("click", fun.next, false);
+    document.getElementById(`prev${button}`).addEventListener("click", fun.prev, false);
 }
 
 
-function elementText (className, text, produto) {
+function elementText(className, text, produto) {
     let element = document.createElement("div");
     let paragraph = document.createTextNode(text);
     element.appendChild(paragraph);
-    element.className=className;
+    element.className = className;
     produto.appendChild(element);
 }
 
-
-function elementImage (source, produto) {
+function elementImage(source, produto) {
     let image = document.createElement("img");
-    image.className="images";
-    image.src=source;
+    image.className = "images";
+    image.src = source;
     produto.appendChild(image);
 }
 
-function elementDiscount (value, produto) {
+function elementDiscount(value, produto) {
     let element = document.createElement("div");
     let paragraph = document.createTextNode('por');
     element.appendChild(paragraph);
@@ -90,78 +96,82 @@ function elementDiscount (value, produto) {
     let valueHighlight = document.createElement("div");
     let paragraph2 = document.createTextNode(value);
     valueHighlight.appendChild(paragraph2);
-    valueHighlight.className='valor';
+    valueHighlight.className = 'valor';
     element.appendChild(valueHighlight);
 
-    element.className='desconto';
+    element.className = 'desconto';
 
     produto.appendChild(element);
 }
 
-function getImages () {
-    
-    for(let i = 1; i < 8; i++){
-        
-        let produto = document.createElement("div");
-        produto.className="produto";
-        
-        if (i > 4){
-            produto.classList.add("hideproduto");
-        }        
-        
-        elementText('ranking',`${i}°`,produto);
+function getImages(data) {
+    data.mostpopular.forEach((item, index) => {
+        getJSONdata('/complete', function(err, data) {
+            if (err !== null) {
+                console.log('Error from server: ' + err);
+            }
 
-        elementImage(`image${i}.jpg`, produto);
-        
-        elementText('nomeProduto','Lorem Ipsun',produto);
+            let produto = document.createElement("div");
+            produto.className = "produto";
 
-        elementText('preco','R$ 100.00',produto);
+            if (index > 4) {
+                produto.classList.add("hideproduto");
+            }
 
-        elementDiscount('R$ 100.00', produto);
+            elementText('ranking', `${index+1}°`, produto);
 
-        elementText('prazos','10x R$ 189,50',produto);
+            elementImage(data.image, produto);
 
-        document.getElementById("maisVendidosSlide").appendChild(produto);
-    }
+            elementText('nomeProduto', data.name, produto);
 
-    for(let i = 1; i < 8; i++){
-        
-        let produto = document.createElement("div");
-        produto.className="produto";
+            elementText('preco', `R$ ${parseFloat(data.oldPrice).toFixed(2)}`, produto);
 
-        if (i > 4){
-            produto.classList.add("hideproduto");
-        }
-        
-        elementText('porcentagem','%3',produto);
+            elementDiscount(`R$ ${parseFloat(data.price).toFixed(2)}`, produto);
 
-        elementImage(`image${i}.jpg`, produto);
-        
-        elementText('nomeProduto','Lorem Ipsun',produto);
+            elementText('prazos', `${data.installmentCount}x R$ ${data.installmentPrice}`, produto);
 
-        elementText('preco','R$ 100.00',produto);
+            document.getElementById("maisVendidosSlide").appendChild(produto);
 
-        elementDiscount('R$ 100.00', produto);
-        elementText('prazos','10x R$ 189,50',produto);
+        }, item.recommendedProduct.id)
+    })
 
-        document.getElementById("ofertasSlide").appendChild(produto);
-    }
+    data.pricereduction.forEach((item, index) => {
+        getJSONdata('/complete', function(err, data) {
+            let produto = document.createElement("div");
+            produto.className = "produto";
 
-    handleMaisImages('mais','maisVendidosSlide', currentMais, 7);
-    handleMaisImages('oferta','ofertasSlide', currentOferta, 7);
+            if (index > 4) {
+                console.log('index', index)
+                produto.classList.add("hideproduto");
+            }
+
+            elementText('porcentagem', `%${percent(data.price, data.oldPrice)}`, produto);
+
+            elementImage(data.image, produto);
+
+            elementText('nomeProduto', data.name, produto);
+
+            elementText('preco', `R$ ${parseFloat(data.oldPrice).toFixed(2)}`, produto);
+
+            elementDiscount(`R$ ${parseFloat(data.price).toFixed(2)}`, produto);
+
+            elementText('prazos', `${data.installmentCount}x R$ ${data.installmentPrice}`, produto);
+
+            document.getElementById("ofertasSlide").appendChild(produto);
+        }, item.recommendedProduct.id)
+    })
+
+    handleMaisImages('mais', 'maisVendidosSlide');
+    handleMaisImages('oferta', 'ofertasSlide');
 }
 
 
-getJSON('http://127.0.0.1:3000/data',
-    function(err, data) {
-      if (err !== null) {
-        console.log('Something went wrong: ' + err);
-      } else {
-        console.log('Your query count: ', data);
-      }
-    }, 10);
-
-
-window.addEventListener("load",getImages,false);
-
-
+window.addEventListener(
+    "load",
+    getJSONdata('/data', function(err, data) {
+        if (err !== null) {
+            console.log('Error from server: ' + err);
+        } else {
+            getImages(data);
+        }
+    }, maxProducts), false);

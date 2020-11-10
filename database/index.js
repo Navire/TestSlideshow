@@ -2,79 +2,143 @@ const bodyParser = require('body-parser');
 const express = require('express');
 const app = express();
 const lineByLine = require('n-readlines');
-
-const mysql      = require('mysql');
-const connection = mysql.createConnection({
-  host     : 'localhost',
-  user     : 'root',
-  password : '',
-});
-
+const hostInfos = require('./hostInfos');
+const mysql = require('mysql');
+const connection = mysql.createConnection(hostInfos);
+const catalog = './background/catalog.json';
 const sql = `CREATE TABLE IF NOT EXISTS products (
-    id INT NOT NULL AUTO_INCREMENT, 
+    id VARCHAR(50) NOT NULL, 
     PRIMARY KEY(id), 
-    name VARCHAR(255), 
+		name VARCHAR(255),
+		installmentPrice VARCHAR(50),
+		installmentCount VARCHAR(50),
     price VARCHAR(50), 
     oldPrice VARCHAR(50), 
     status VARCHAR(50), 
     categories VARCHAR(50), 
+    brand VARCHAR(50),
     image VARCHAR(255)
 )`;
 
-connection.connect(function(err) {
-    if (err) {
-        throw err
-    };
-    console.log("Connected!");
+const getValues = (obj) => `(
+		'${obj.id}',
+    '${obj.name}',
+		'${obj.installment.price}',
+		'${obj.installment.count}',
+		'${obj.price}',
+		'${obj.oldPrice}',
+    '${obj.status}',
+    '${obj.categories[0].name}',
+    '${obj.brand}',
+    '${obj.images.imagem1 ? obj.images.imagem1 : obj.images.default}'),`;
 
-    connection.query("CREATE DATABASE IF NOT EXISTS catalogTest", function (err, result) {
+const insertData = (list) => {
+    var sql = `INSERT INTO products (id, name, installmentPrice, installmentCount, price, oldPrice, status, categories, brand, image) VALUES ${list};`;
+    connection.query(sql, function(err, result) {
         if (err) {
             throw err
         };
-        console.log("Database created if not exits");
-    });                        
+        console.log("1 record inserted");
+    });
+}
 
-    connection.query('USE catalogTest', (err) => {        
-        if (err) {
-            throw err
-        };
+app.use(bodyParser.urlencoded({ extended: true }));
 
-        connection.query(sql, function (err, result) {
-            if (err) {
-              throw err
-            };
-            console.log("Table products created if not exits");
-        });
-
-        console.log('Using catalogTest')
-    })
-
-  });
-
-app.use(bodyParser.urlencoded({extended: true}));
-
-app.listen(3001, ()=> {
-    console.log('running')
-})
-
-
-app.get('/', (req,res) => {
-    const datasource = [];
+const migrateData = () => {
     const liner = new lineByLine('catalog.json');
+    let list = '';
+    let count = 0;
 
-    for(let i=0; i<3;i++){
-        line = liner.next();
-        const dataObj =JSON.parse(line)
-        datasource.push(dataObj); 
+    while (line = liner.next()) {
+        const dataObj = JSON.parse(line)
+        list += getValues(dataObj);
+        count++;
+        if (count > 100) {
+            insertData(list.slice(0, -1));
+            count = 0;
+            list = '';
+        }
     }
 
+    insertData(list.slice(0, -1));
+};
 
-    // connection.query('SELECT 1 + 1 AS solution', function(err, rows, fields) {
-    //     if (err) throw err;
-    //     console.log('The solution is: ', rows[0].solution);
-    //   });
 
-    res.send({ value1: datasource[2]})
-    connection.end();
+const checkDataOnTable = () => {
+    connection.query('SELECT * FROM catalogtest.products LIMIT 1;', (err, result) => {
+        if (err) {
+            throw err
+        };
+
+        if (result.length === 0) {
+            migrateData();
+        }
+    })
+}
+
+app.get('/complete/:id', function(req, res, next) {
+    connection.query(`SELECT * FROM catalogtest.products WHERE id='${req.params.id}'`, (err, result) => {
+        if (err) {
+            throw err
+        };
+
+        if (result.length !== 0) {
+            res.send(result[0])
+        }
+    })
+});
+
+app.get('/', function(req, res, next) {
+    const liner = new lineByLine('catalog.json');
+    line = liner.next();
+    const dataObj = JSON.parse(line);
+    res.send(dataObj)
+});
+
+
+app.get('/compact/:id', function(req, res, next) {
+    connection.query(`SELECT name, price, status, categories FROM catalogtest.products WHERE id='${req.params.id}'`, (err, result) => {
+        if (err) {
+            throw err
+        };
+
+        if (result.length !== 0) {
+            res.send(result[0])
+        }
+    })
+
+});
+
+app.listen(3001, () => {
+    connection.connect((err) => {
+        if (err) {
+            throw err
+        };
+        console.log("Connected!");
+
+        connection.query("CREATE DATABASE IF NOT EXISTS catalogTest", (err) => {
+            if (err) {
+                throw err
+            };
+            console.log("Database created if not exits");
+        });
+
+        connection.query('USE catalogTest', (err) => {
+            if (err) {
+                throw err
+            };
+
+            connection.query(sql, (err, result) => {
+                if (err) {
+                    throw err
+                };
+                console.log("Table products created if not exits");
+
+                checkDataOnTable();
+            });
+            console.log('Using catalogTest')
+        })
+    });
+
+    console.log('running')
 })
-
